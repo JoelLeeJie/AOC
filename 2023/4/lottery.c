@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "math.h"
 
 int *GetArray(const char *srcLine, int *size);
 int CountPoints(const int *winArr, int sizeWin, const int *ownArr, int sizeOwn);
@@ -46,7 +47,7 @@ int *GetArray(const char *srcLine, int *size)
     int temp, charRead = 0;
     int current_allocSize = 0;
     int *allocArray;
-    while(sscanf(srcLine, " %d%n", &temp, &charRead)) //increment readPtr by number of characters read.
+    while(sscanf(srcLine, " %d%n", &temp, &charRead) > 0) //increment readPtr by number of characters read.
     {
         srcLine += charRead;
         ++*size; //number of integers currently stored, including the one just read.
@@ -75,12 +76,10 @@ int CountPoints(const int *winArr, int sizeWin, const int *ownArr, int sizeOwn)
         {
             if(ownArr[own] == winArr[win])
             {
-                printf("%d : %d", ownArr[own], winArr[win]);
                 points++;
                 break; //break inner loop, carry on to next.
             }
         }
     }
-    printf("\n");
-    return points;
+    return pow(2, points-1);
 }
