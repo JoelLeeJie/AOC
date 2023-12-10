@@ -38,22 +38,12 @@ int main(void)
             result = RunMap(result, currentMap, map_Size, dynamicMaps);
         }
         lowest = (result<lowest)? result : lowest;
-    }   
-    printf("%ld\n\n", lowest);
+        printf("%ld -- %ld\n", result, lowest);
 
-    //pass in the min, max of each seed pair. Do for all seed pairs.
-    lowest = __LONG_MAX__;
-    long int temp;
-    for(int pair = 0; pair<num_Seeds; pair+=2)
-    {
-        if(seedArr[pair] == 0) continue; 
-        long int start = seedArr[pair];
-        long int end = start+seedArr[pair+1]-1;
-        temp = CheckMap(start, end, map_Size, dynamicMaps);
-        printf("%ld\n", temp);
-        lowest = (temp<lowest)? temp:lowest;
-    }
-    printf("%ld\n", lowest);
+    }   
+    printf("\n%ld", lowest);
+
+
     /*
     //Proof of Concept. Print out the entire dynamic array, separate by map.
     int currentIndex = 0;
@@ -151,7 +141,6 @@ long int RunMap(long int number, int map_Index, int *map_Size, long int *dynamic
     }
     baseIndex *= 3; //multiply by 3, because 3 elements per line.
 
-    //run each map until valid number is returned.
     for(int i = 0; i<map_Size[map_Index]; i++)
     {
         result = ConvertNumber(number, dynamicArr[baseIndex], dynamicArr[baseIndex+1], dynamicArr[baseIndex+2]);
@@ -170,73 +159,4 @@ long int ConvertNumber(long int number, long int destination, long int source, l
     }
 
     return destination + (number-source); //99, 50, 98, 2 : returns 51 which is correct.
-}
-
-//takes in a range, and gives lowest number.
-long int CheckMap(long int min, long int max, int *map_Size, long int *dynamicMaps)
-{
-    long int lowest = __LONG_MAX__, temp = 0;
-    //check all ranges in the first map.
-    for(int i = 0; i<map_Size[0]; i++)
-    {
-        long int mapStart = dynamicMaps[i*3+1];
-        long int mapEnd = mapStart + dynamicMaps[i*3+2]-1;
-        
-        //this map is not appropriate for this.
-        if(max<mapStart || min>mapEnd) continue;
-
-        //check if seed range is within map range.  If it is, run map for both ends and check the smallest result.
-        if(min>=mapStart && max<=mapEnd)
-        {
-            for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-            {
-                min = RunMap(min, i, map_Size, dynamicMaps);
-                max = RunMap(max, i, map_Size, dynamicMaps);
-            }
-            lowest = (min<lowest)? min:lowest;
-            lowest = (max<lowest)? max:lowest;
-            return lowest;
-        }
-
-        //below this point, either min or max lies within range, but not both.
-        if(min>=mapStart) //max out of bounds, so min - mapEnd.
-        {
-            temp = mapEnd;
-            for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-            {
-                min = RunMap(min, i, map_Size, dynamicMaps);
-                temp = RunMap(temp, i, map_Size, dynamicMaps);
-            }
-            lowest = (min<lowest)? min:lowest;
-            lowest = (temp<lowest)? temp:lowest;
-
-            min = mapEnd+1;
-            continue; //try to find a map for the new range.
-        }
-        else //min out of bounds, so mapStart - max.
-        {
-            temp = mapStart;
-            for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-            {
-                temp = RunMap(temp, i, map_Size, dynamicMaps);
-                max = RunMap(max, i, map_Size, dynamicMaps);
-            }
-            lowest = (temp<lowest)? temp:lowest;
-            lowest = (max<lowest)? max:lowest;
-            
-            max = mapStart-1;
-            continue;
-        }
-    }
-
-    while(min<=max)
-    {
-        for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-        {
-            min = RunMap(min, i, map_Size, dynamicMaps);
-        }
-        lowest = (min<lowest)? min:lowest;
-        min++;
-    }
-    return lowest;
 }
