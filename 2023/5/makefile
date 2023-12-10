@@ -1,5 +1,5 @@
 all:
-	gcc -Wextra -Wall -Werror -Wstrict-prototypes -pedantic-errors -std=c11 -g seedmap.c -o seedmap.out
+	gcc -Wextra -Wall -Werror -Werror=vla -Wstrict-prototypes -pedantic-errors -std=c11 -g seedmap.c -o seedmap.out
 	./seedmap.out
 
 

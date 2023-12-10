@@ -2,14 +2,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include "seedmap.h"
+#define num_Maps 10
+#define num_Seeds 50
 
 int main(void)
 {
-    const int num_Maps = 10, num_Seeds = 50;
     //assumptions
     //1. Every line has 3 elements(ok).
     //2. These elements are in the format (Destination, Start, Range)
-    int map_Size[num_Maps] = {0}; //leave space for 10 maps, but only using 7.
+    int map_Size[num_Maps]; //leave space for 10 maps, but only using 7.
     FILE* readFile = fopen("input.txt", "r");
     if(readFile == NULL)
     {
@@ -25,8 +26,7 @@ int main(void)
     
 
     //loop through each seed.
-    long int lowest = 0, result = 0;
-    int currentIndex = 0;
+    long int lowest = __LONG_MAX__, result = 0;
     for(int i = 0; i<num_Seeds; i++)
     {
         if(seedArr[i] == -1) continue;
@@ -38,8 +38,10 @@ int main(void)
             result = RunMap(result, currentMap, map_Size, dynamicMaps);
         }
         lowest = (result<lowest)? result : lowest;
+        printf("%ld -- %ld\n", result, lowest);
+
     }   
-    printf("%ld", lowest);
+    printf("\n%ld", lowest);
 
 
     /*
@@ -143,7 +145,7 @@ long int RunMap(long int number, int map_Index, int *map_Size, long int *dynamic
     {
         result = ConvertNumber(number, dynamicArr[baseIndex], dynamicArr[baseIndex+1], dynamicArr[baseIndex+2]);
         baseIndex += 3;
-        if(result != number) return number; //once valid map is hit.
+        if(result != number) return result; //once valid map is hit.
     }
     return number; //no valid map found
 }
