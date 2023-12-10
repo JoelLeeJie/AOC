@@ -11,7 +11,7 @@ int main(void)
     //1. Every line has 3 elements(ok).
     //2. These elements are in the format (Destination, Start, Range)
     int map_Size[num_Maps]; //leave space for 10 maps, but only using 7.
-    FILE* readFile = fopen("input.txt", "r");
+    FILE* readFile = fopen("example.txt", "r");
     if(readFile == NULL)
     {
         printf("Unable to read input file.");
@@ -41,19 +41,20 @@ int main(void)
     }   
     printf("%ld\n\n", lowest);
 
+    ////TODO: PART 2
     //pass in the min, max of each seed pair. Do for all seed pairs.
     lowest = __LONG_MAX__;
     long int temp;
     for(int pair = 0; pair<num_Seeds; pair+=2)
     {
-        if(seedArr[pair] == 0) continue; 
+        if(seedArr[pair] <= 0) continue; 
         long int start = seedArr[pair];
         long int end = start+seedArr[pair+1]-1;
         temp = CheckMap(start, end, map_Size, dynamicMaps);
-        printf("%ld\n", temp);
         lowest = (temp<lowest)? temp:lowest;
     }
     printf("%ld\n", lowest);
+    
     /*
     //Proof of Concept. Print out the entire dynamic array, separate by map.
     int currentIndex = 0;
@@ -172,71 +173,94 @@ long int ConvertNumber(long int number, long int destination, long int source, l
     return destination + (number-source); //99, 50, 98, 2 : returns 51 which is correct.
 }
 
-//takes in a range, and gives lowest number.
-long int CheckMap(long int min, long int max, int *map_Size, long int *dynamicMaps)
+//takes in a range, and gives lowest number for that range.
+//recursive method(?).
+long int CheckMap(long int min, long int max, int map_Index, int *map_Size, long int *dynamicMaps)
 {
-    long int lowest = __LONG_MAX__, temp = 0;
-    //check all ranges in the first map.
-    for(int i = 0; i<map_Size[0]; i++)
-    {
-        long int mapStart = dynamicMaps[i*3+1];
-        long int mapEnd = mapStart + dynamicMaps[i*3+2]-1;
+    /*
+        if the seed range is 79 - 92, and the map is 52, 50, 48
+        Then the destination range will be ConvertNumber(79) to ConvertNumber(92), or rather 81 - 94.
+        Instead of converting each number individually, just convert the ends of the ranges.
+        However, if the seed range does not fully fit into the map range, e.g. 45 - 60.
+        Separate into 45 - 49, and 50 - 60. Store both ranges into an array.
+        50 - 60 will become 52 - 62; For range 45-49, search for another map that can take or split it. 
         
-        //this map is not appropriate for this.
-        if(max<mapStart || min>mapEnd) continue;
+        Since it's recursion, once the range has been fully converted, and there's no more maps remaining,
+        then return the minimum of the converted range.
+    */
+    if(map_Size[map_Index] <= 0) return min; //recursion base condition is when no more maps remain.
 
-        //check if seed range is within map range.  If it is, run map for both ends and check the smallest result.
-        if(min>=mapStart && max<=mapEnd)
-        {
-            for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-            {
-                min = RunMap(min, i, map_Size, dynamicMaps);
-                max = RunMap(max, i, map_Size, dynamicMaps);
-            }
-            lowest = (min<lowest)? min:lowest;
-            lowest = (max<lowest)? max:lowest;
-            return lowest;
-        }
+    seedPair seedPair[30] = {0};
+    seedPair[0].min = min;
+    seedPair[0].max = max;
 
-        //below this point, either min or max lies within range, but not both.
-        if(min>=mapStart) //max out of bounds, so min - mapEnd.
-        {
-            temp = mapEnd;
-            for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-            {
-                min = RunMap(min, i, map_Size, dynamicMaps);
-                temp = RunMap(temp, i, map_Size, dynamicMaps);
-            }
-            lowest = (min<lowest)? min:lowest;
-            lowest = (temp<lowest)? temp:lowest;
+    int baseIndex = 0; //baseIndex represents the starting index of the current map's first line.
+    for(int i = 0; i<map_Index; i++)
+    {
+        baseIndex += map_Size[i];
+    }
+    baseIndex *=3;
 
-            min = mapEnd+1;
-            continue; //try to find a map for the new range.
-        }
-        else //min out of bounds, so mapStart - max.
+    //iterating through all lines within the current map. 
+    //if a pair is split, the split pair logically did not fit in any of the maps before, so no need iterate all over again.
+    int currentPair = 0;
+    for(int i = 0; i<map_Size[map_Index] && seedPair[currentPair].max != 0; i++) 
+    {
+        long int mapDest = dynamicMaps[baseIndex + i*3];
+        long int mapStart = dynamicMaps[baseIndex + i*3+1];
+        long int mapEnd = mapStart + dynamicMaps[baseIndex + i*3+2] - 1; 
+
+        //map does not match any part of the seed range, check next map
+        if(seedPair[currentPair].min>mapEnd || seedPair[currentPair].max<mapStart)
         {
-            temp = mapStart;
-            for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
-            {
-                temp = RunMap(temp, i, map_Size, dynamicMaps);
-                max = RunMap(max, i, map_Size, dynamicMaps);
-            }
-            lowest = (temp<lowest)? temp:lowest;
-            lowest = (max<lowest)? max:lowest;
-            
-            max = mapStart-1;
             continue;
+        }
+        //matches map in its entirety.
+        if(seedPair[currentPair].min>=mapStart && seedPair[currentPair].max<=mapEnd)
+        {
+            seedPair[currentPair].max += mapDest-mapStart; //convert number.
+            seedPair[currentPair].min += mapDest-mapStart;
+            currentPair++;
+            continue; //continue checking other seedPairs, if no more seedPairs the for loop will close automatically.
+        }
+        //seed range encompasses map range on both ends.
+        if(seedPair[currentPair].min<=mapStart && seedPair[currentPair].max>=mapEnd)
+        {
+            //create 3 pairs. min to mapStart-1, mapStart to mapEnd, mapEnd+1 to max.
+            seedPair[currentPair+1].min = seedPair[currentPair].min;
+            seedPair[currentPair+1].max = mapStart-1;
+            
+            seedPair[currentPair+2].min = mapEnd+1;
+            seedPair[currentPair+2].max = seedPair[currentPair].max;
+            
+            seedPair[currentPair].min += mapDest-mapStart;
+            seedPair[currentPair].max += mapDest-mapStart;
+            currentPair++;
+            continue; //continue checking unconverted pairs against other maps.
+        }
+        //anything below means either min or max is within, but not both.
+        if(seedPair[currentPair].min>=mapStart)
+        {
+            
+        }
+        else
+        {
+
         }
     }
 
-    while(min<=max)
+
+    long int lowest = __LONG_MAX__;
+    //iterate through all seedPairs. seedPairs should be separated and converted by this point.
+    for(int i = 0; i<30; i++)
     {
-        for(int i = 0; map_Size[i] != 0; i++) //run all non-empty maps (1-7). 
+        //no more seed pairs.
+        if(seedPair[i].min == 0 && seedPair[i].max == 0)
         {
-            min = RunMap(min, i, map_Size, dynamicMaps);
+            break;
         }
-        lowest = (min<lowest)? min:lowest;
-        min++;
+        long int temp = CheckMap(seedPair[i].min, seedPair[i].max, map_Index+1, map_Size, dynamicMaps);
+        lowest = (temp<lowest)? temp: lowest;
     }
     return lowest;
 }
