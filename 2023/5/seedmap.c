@@ -11,7 +11,7 @@ int main(void)
     //1. Every line has 3 elements(ok).
     //2. These elements are in the format (Destination, Start, Range)
     int map_Size[num_Maps]; //leave space for 10 maps, but only using 7.
-    FILE* readFile = fopen("example.txt", "r");
+    FILE* readFile = fopen("input.txt", "r");
     if(readFile == NULL)
     {
         printf("Unable to read input file.");
@@ -47,10 +47,10 @@ int main(void)
     long int temp;
     for(int pair = 0; pair<num_Seeds; pair+=2)
     {
-        if(seedArr[pair] <= 0) continue; 
+        if(seedArr[pair] <= 0 && seedArr[pair+1] <= 0) continue; 
         long int start = seedArr[pair];
         long int end = start+seedArr[pair+1]-1;
-        temp = CheckMap(start, end, map_Size, dynamicMaps);
+        temp = CheckMap(start, end, 0, map_Size, dynamicMaps);
         lowest = (temp<lowest)? temp:lowest;
     }
     printf("%ld\n", lowest);
@@ -190,7 +190,7 @@ long int CheckMap(long int min, long int max, int map_Index, int *map_Size, long
     */
     if(map_Size[map_Index] <= 0) return min; //recursion base condition is when no more maps remain.
 
-    seedPair seedPair[30] = {0};
+    SeedPair seedPair[30] = {0};
     seedPair[0].min = min;
     seedPair[0].max = max;
 
@@ -204,7 +204,7 @@ long int CheckMap(long int min, long int max, int map_Index, int *map_Size, long
     //iterating through all lines within the current map. 
     //if a pair is split, the split pair logically did not fit in any of the maps before, so no need iterate all over again.
     int currentPair = 0;
-    for(int i = 0; i<map_Size[map_Index] && seedPair[currentPair].max != 0; i++) 
+    for(int i = 0; i<map_Size[map_Index] && (seedPair[currentPair].min != 0 || seedPair[currentPair].max != 0); i++) 
     {
         long int mapDest = dynamicMaps[baseIndex + i*3];
         long int mapStart = dynamicMaps[baseIndex + i*3+1];
@@ -224,28 +224,33 @@ long int CheckMap(long int min, long int max, int map_Index, int *map_Size, long
             continue; //continue checking other seedPairs, if no more seedPairs the for loop will close automatically.
         }
         //seed range encompasses map range on both ends.
-        if(seedPair[currentPair].min<=mapStart && seedPair[currentPair].max>=mapEnd)
+        if(seedPair[currentPair].min<mapStart && seedPair[currentPair].max>mapEnd)
         {
             //create 3 pairs. min to mapStart-1, mapStart to mapEnd, mapEnd+1 to max.
-            seedPair[currentPair+1].min = seedPair[currentPair].min;
-            seedPair[currentPair+1].max = mapStart-1;
+            AddSeedRange(seedPair, 30, seedPair[currentPair].min, mapStart-1);
+            AddSeedRange(seedPair, 30, mapEnd+1, seedPair[currentPair].max);
             
-            seedPair[currentPair+2].min = mapEnd+1;
-            seedPair[currentPair+2].max = seedPair[currentPair].max;
-            
-            seedPair[currentPair].min += mapDest-mapStart;
-            seedPair[currentPair].max += mapDest-mapStart;
+            seedPair[currentPair].min = mapStart + mapDest-mapStart;
+            seedPair[currentPair].max = mapEnd + mapDest-mapStart;
             currentPair++;
             continue; //continue checking unconverted pairs against other maps.
         }
         //anything below means either min or max is within, but not both.
         if(seedPair[currentPair].min>=mapStart)
-        {
-            
+        { //mapStart, min, mapEnd, max. 
+            AddSeedRange(seedPair, 30, mapEnd+1, seedPair[currentPair].max);
+            seedPair[currentPair].min += mapDest-mapStart; 
+            seedPair[currentPair].max = mapEnd + mapDest-mapStart;
+            currentPair++;
+            continue;
         }
         else
-        {
-
+        { //min, mapStart, max, mapEnd
+            AddSeedRange(seedPair, 30, seedPair[currentPair].min, mapStart-1);
+            seedPair[currentPair].min = mapStart + mapDest-mapStart; 
+            seedPair[currentPair].max += mapDest-mapStart;
+            currentPair++;
+            continue;
         }
     }
 
@@ -263,4 +268,20 @@ long int CheckMap(long int min, long int max, int map_Index, int *map_Size, long
         lowest = (temp<lowest)? temp: lowest;
     }
     return lowest;
+}
+
+//check for empty space in the array and add a seedPair there.
+void AddSeedRange(SeedPair *arr, int size, long int min, long int max)
+{
+    for(int i = 0; i<size; i++)
+    {
+        if(arr[i].min!=0 || arr[i].max != 0)
+        {
+            continue;
+        }
+        arr[i].min = min;
+        arr[i].max = max;
+        return;
+    }
+    printf("Not enough space in seedRangeArr\n");
 }
