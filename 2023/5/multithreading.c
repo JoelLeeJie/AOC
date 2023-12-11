@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "seedmap.h"
+#include "multithreading.h"
+#include <pthread.h>
 #define num_Maps 10
 #define num_Seeds 50
 
@@ -38,11 +39,44 @@ int main(void)
             result = RunMap(result, currentMap, map_Size, dynamicMaps);
         }
         lowest = (result<lowest)? result : lowest;
-        printf("%ld -- %ld\n", result, lowest);
-
     }   
-    printf("\n%ld", lowest);
+    printf("\n%ld\n", lowest);
 
+    #define num_threads 20
+
+    //split task into X more threads.
+    threadArgs *argsDynamicArr = malloc(num_threads * sizeof(threadArgs)); //dynamic, otherwise value will not be retained after passing. 
+    pthread_t threads[num_threads] = {0};
+    //creates X threads, assigning them different number ranges 0 to 100million. Store each thread id in an array.
+    for(int i = 0; i<num_threads; i++)
+    {
+        argsDynamicArr[i] = (threadArgs){
+            .start = i*(100000000/num_threads) + 1, 
+            .end = (i+1)*(100000000/num_threads),
+            .seedArr = seedArr,
+            .size_seedArr = num_Seeds,
+            .map_Size = map_Size,
+            .dynamicArr = dynamicMaps
+            };
+        if(pthread_create(&threads[i], NULL, ThreadFunction, &argsDynamicArr[i]))
+        {
+            printf("Error creating thread %d\n", i);
+        }
+    }
+
+    void* temp;
+    //wait for every thread to finish, then check return value.
+    for(int i = 0; i<num_threads; i++)
+    {
+        pthread_join(threads[i], &temp);
+        if(*((int*)temp) >= 0)
+        {
+            lowest = (*((int*)temp)<lowest)? *((int*)temp):lowest;
+        }
+        free(temp); //since return value is stored in dynamic memory, need to free it.
+    }
+    printf("%ld\n", lowest);
+    free(argsDynamicArr);
 
     /*
     //Proof of Concept. Print out the entire dynamic array, separate by map.
@@ -159,4 +193,75 @@ long int ConvertNumber(long int number, long int destination, long int source, l
     }
 
     return destination + (number-source); //99, 50, 98, 2 : returns 51 which is correct.
+}
+
+//takes in a result and outputs the seed input for that map index.
+long int ResultToSeed(long int result, int map_Index, int *map_Size, long int *dynamicArr)
+{
+    int baseIndex = 0;
+    for(int i = 0; i<map_Index; i++)
+    {
+        baseIndex += 3*(map_Size[i]);
+    }
+
+    long int seed;
+    //runs through all the map lines for this map.
+    for(int i = 0; i<map_Size[map_Index]; i++)
+    {
+        //swap destination with source to get the seed from the result instead of vice versa.
+        seed = ConvertNumber(result, dynamicArr[baseIndex+3*i+1], dynamicArr[baseIndex+3*i], dynamicArr[baseIndex+3*i+2]);
+        if(seed == result) continue; //map doesn't match.
+        return seed;
+    }
+    return result; 
+}
+
+
+int CheckInSeedRange(long int number, long int *seedArr, int size)
+{
+    for(int i = 0; i<size && (seedArr[i]>0 || seedArr[i+1]>0); i+=2)
+    {
+        if(number<seedArr[i] || number>seedArr[i]+seedArr[i+1]-1)
+        {
+            continue;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+//Finds the lowest result within given range (start - end) that has a valid seed within seed range. Return that result, or return -1 if no such result.
+long int FindLowestResult(long int start, long int end, long int *seedArr, int size_seedArr, int *map_Size, long int *dynamicArr)
+{
+    long int temp = 0;
+    
+    //check how many maps there are to run through.
+    int NumberofMaps = 0;
+    for(; map_Size[NumberofMaps]>0; NumberofMaps++){} 
+
+    //run through the entire range of results in ascending order.
+    for(; start<=end; start+=1)
+    {
+        //for each result, find its starting seed, running backwards from last map to first map.
+        temp = start;
+        for(int map_Index = NumberofMaps-1; map_Index>=0; map_Index--)
+        {
+            temp = ResultToSeed(temp, map_Index, map_Size, dynamicArr);
+        }
+        //valid starting seed found.
+        if(CheckInSeedRange(temp, seedArr, size_seedArr))
+        {
+            return start;
+        }
+    }
+    return -1;
+}
+
+void* ThreadFunction(void *args)
+{
+    //args is memory location of struct, so cast args into struct pointer and dereference that to get struct.
+    threadArgs structArgs = *((threadArgs*)args);
+    long int *temp = malloc(8);
+    *temp = FindLowestResult(structArgs.start, structArgs.end, structArgs.seedArr, structArgs.size_seedArr, structArgs.map_Size, structArgs.dynamicArr);
+    pthread_exit((void*)(temp));
 }
