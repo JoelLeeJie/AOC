@@ -24,6 +24,12 @@ int main(void)
         sum += (i+1) * Hand_DynamicArray[i].bet;
     }
     printf("%ld\n\n", sum);
+
+    char *cardType[8] = {"None", "High", "Onepair", "Twopair", "3kind", "FullHouse", "4kind", "5kind"};
+    for(int i = 0; i<num_Hands; i++)
+    {
+        printf("%s   :%s\n", Hand_DynamicArray[i].cards, cardType[Hand_DynamicArray[i].handType]);
+    }
     printf("NUM: %d\n", num_Hands);
 
     fclose(readFile);
@@ -57,6 +63,7 @@ Hand* ReadHands(FILE* readPtr, int *counter)
 }
 
 //Takes in string of 5 card characters, returns type of hand as type (enum).
+//Issue with T55J5
 type CheckType(const char *card)
 {   
     char buffer[5];
@@ -78,6 +85,30 @@ type CheckType(const char *card)
             buffer[j] = '\0'; //remove matching cards to prevent double count.
             matching[i]++;
         }
+    }
+
+    for(int i = 0; i<5; i++)
+    {
+        buffer[i] = card[i];
+    }
+
+    for(int i = 0; i<5; i++)
+    {
+        if(buffer[i]!='J') continue;
+        //contains J.
+        int temp = matching[i]; //First occurence of J in matching will hold all occurences of J, since no double count.
+
+        matching[i] = 0; //zero out J, since it's used to add to highest matching instead.
+        //Do note that J should be zeroed out in the case of 88JJJ, since J should be used to add onto 8.
+
+        //get the index of the highest number in matching.
+        int highest = 0;
+        for(int j = 0; j<5; j++) //Note that if everything is 0(i.e. JJJJJ), then it'll just be added at index 0.
+        {
+            if(matching[highest]<matching[j]) highest = j;
+        }
+
+        matching[highest] += temp; //if JJJJJ, then it'll be set to 0, then +5.
     }
 
     /*Theory: maximum and minimum of 5 cards in matching array.
@@ -143,7 +174,7 @@ void SortArray(Hand *handArr, int lowIndex, int highIndex)
 //return -ve if left is lower, 0 if equal, +ve if higher.
 int CompareHand(Hand left, Hand right)
 {
-    char compareValue[] = {'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'};
+    char compareValue[] = {'A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J'};
     if(left.handType!=right.handType)
     {
         return (int)left.handType-(int)right.handType;
