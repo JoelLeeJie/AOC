@@ -34,6 +34,9 @@ int main(void)
         printf("\n");
     }
 
+    KeyValue *temp = ReadHashMap("MQV", hashMap, 160);
+    printf("%s, %s, %s", temp->key, temp->left, temp->right);
+
     fclose(readPtr);
     ClearHashMap(hashMap, 160);
 }
