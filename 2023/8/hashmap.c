@@ -1,18 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "hashmap.h"
 
-typedef struct KeyValue{
-    char key[4];
-    //values
-    char left[4];
-    char right[4];
-}KeyValue;
-
-typedef struct Bucket{
-    KeyValue keyPair;
-    struct Bucket *nextPtr;
-}Bucket;
 
 int main(void)
 {
@@ -25,11 +15,40 @@ int main(void)
         return 0;
     }
 
+    char instructions[500];
+    fgets(instructions, 500, readPtr);
+    PutInputInHashMap(hashMap, 160, readPtr);
+
+    printf("\n\n\n");
+    for(int i = 0, counter = 0; i<160; i++)
+    {
+        Bucket *temp = hashMap+i;
+        /*
+        while(temp->nextPtr!=NULL)
+        {
+            printf("%d. %s: (%s, %s)   ", counter++, temp->keyPair.key, temp->keyPair.left, temp->keyPair.right);
+            temp = temp->nextPtr;
+        }
+        */
+        printf("%d. %s: (%s, %s)   ", counter++, temp->keyPair.key, temp->keyPair.left, temp->keyPair.right);
+        printf("\n");
+    }
 
     fclose(readPtr);
     ClearHashMap(hashMap, 160);
 }
 
+void PutInputInHashMap(Bucket *hashMapPtr, int length, FILE* readPtr)
+{
+    KeyValue temp;
+    char buffer[500];
+    while(fgets(buffer, 500, readPtr)!=NULL)
+    {
+        if(buffer[0] == '\n') continue;
+        sscanf(buffer, "%s %*[^(](%[^,], %[^)]", temp.key, temp.left, temp.right);
+        PutHashMap(temp, hashMapPtr, length);
+    }
+}
 
 
 //returns an integer based on input
@@ -92,6 +111,8 @@ void ClearHashMap(Bucket *hashMapPtr, int length)
     for(int i = 0; i<length; i++)
     {
         hashMapPtr = base+i;
+        if(hashMapPtr->nextPtr == NULL) continue;
+        hashMapPtr = hashMapPtr->nextPtr; //since the start of the list isn't in dynamic memory, but rather in an array.
         while(hashMapPtr->nextPtr != NULL)
         {
             Bucket *tmp = hashMapPtr;
