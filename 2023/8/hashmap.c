@@ -28,8 +28,12 @@ int main(void)
         printf("\n");
     }
 
-    int numSteps = RunInstructions(instructions, "AAA", "ZZZ", hashMap, MAPSIZE);
-    printf("\n%d\n", numSteps);
+    //int numSteps = RunInstructions(instructions, "AAA", "ZZZ", hashMap, MAPSIZE);
+    //printf("\n%d\n", numSteps);
+
+    long long int numSteps = RunInstructionsPartTwo(instructions, hashMap, MAPSIZE);
+    printf("\n%lld\n", numSteps);
+
     fclose(readPtr);
     ClearHashMap(hashMap, MAPSIZE);
 }
@@ -62,6 +66,68 @@ int RunInstructions(const char* instructions, const char* start, const char* end
         }
     }
     return counter;
+}
+
+int RunInstructionsPartTwo(const char* instructions, Bucket* hashMapPtr, int length)
+{
+    long long int counter = 0; int num_Keys = 0, instructionsLength = 0;
+    char *keyArr[500] = {0};
+    Bucket* temp = hashMapPtr;
+
+    for(const char *temp3 = instructions; *temp3!='\0'; instructionsLength++, temp3++)
+    {
+    }
+    //Fill array with all keys ending in A. Iterate through each linked list in each index.
+    for(int i = 0; i<length; i++)
+    {
+        temp = hashMapPtr + i;
+        while(temp->nextPtr != NULL)
+        {
+            if(temp->keyPair.key[2] == 'A') keyArr[num_Keys++] = temp->keyPair.key;
+            temp = temp->nextPtr;
+        }
+        if(temp->keyPair.key[2] == 'A') keyArr[num_Keys++] = temp->keyPair.key;
+    }
+
+    for(int i = 0; i<num_Keys; i++)
+    {
+        printf("%s  \n", keyArr[i]);
+    }
+
+    //if all keys don't match criteria, then move to next instruction.
+    while(!CheckKeyArray(keyArr, num_Keys))
+    {
+        char tempInstruction = *(instructions + counter%(instructionsLength-1));       
+        counter++;
+        for(int i = 0; i<num_Keys; i++) //run instruction for each key.
+        {
+            KeyValue *temp2 = ReadHashMap(keyArr[i], hashMapPtr, length);
+            switch (tempInstruction)
+            {
+            case 'L':
+                temp2 = ReadHashMap(temp2->left, hashMapPtr, length); 
+                break;
+            case 'R':
+                temp2 = ReadHashMap(temp2->right, hashMapPtr, length); 
+                break;
+            default:
+                printf("Invalid Instruction, %lld\n", (counter-1)%instructionsLength);
+                break;
+            }
+            keyArr[i] = temp2->key;
+        }
+    }
+    return counter;
+}
+
+//returns 1 if all keys in keyArr end with Z, else returns 0.
+int CheckKeyArray(char** keyArr, int length)
+{
+    for(int i = 0; i<length; i++)
+    {
+        if(keyArr[i][2] != 'Z') return 0;
+    }
+    return 1;
 }
 
 void PutInputInHashMap(Bucket *hashMapPtr, int length, FILE* readPtr)
