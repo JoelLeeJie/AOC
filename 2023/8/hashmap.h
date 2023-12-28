@@ -17,3 +17,4 @@ void PutHashMap(KeyValue input, Bucket *hashMapPtr, int length);
 KeyValue* ReadHashMap(const char* key, Bucket *hashMapPtr, int length);
 void ClearHashMap(Bucket *hashMapPtr, int length);
 int CompareString(const char* left, const char* right);
+int RunInstructions(const char* instructions, const char* start, const char* end, Bucket* hashMapPtr, int length);

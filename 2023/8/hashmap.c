@@ -3,10 +3,11 @@
 #include <string.h>
 #include "hashmap.h"
 
+#define MAPSIZE 400
 
 int main(void)
 {
-    static Bucket hashMap[160] = {0};
+    static Bucket hashMap[MAPSIZE] = {0};
 
     FILE* readPtr = fopen("input.txt", "r");
     if(readPtr == NULL)
@@ -17,28 +18,50 @@ int main(void)
 
     char instructions[500];
     fgets(instructions, 500, readPtr);
-    PutInputInHashMap(hashMap, 160, readPtr);
+    PutInputInHashMap(hashMap, MAPSIZE, readPtr);
 
     printf("\n\n\n");
-    for(int i = 0, counter = 0; i<160; i++)
+    for(int i = 0, counter = 0; i<MAPSIZE; i++)
     {
         Bucket *temp = hashMap+i;
-        /*
-        while(temp->nextPtr!=NULL)
-        {
-            printf("%d. %s: (%s, %s)   ", counter++, temp->keyPair.key, temp->keyPair.left, temp->keyPair.right);
-            temp = temp->nextPtr;
-        }
-        */
         printf("%d. %s: (%s, %s)   ", counter++, temp->keyPair.key, temp->keyPair.left, temp->keyPair.right);
         printf("\n");
     }
 
-    KeyValue *temp = ReadHashMap("MQV", hashMap, 160);
-    printf("%s, %s, %s", temp->key, temp->left, temp->right);
-
+    int numSteps = RunInstructions(instructions, "AAA", "ZZZ", hashMap, MAPSIZE);
+    printf("\n%d\n", numSteps);
     fclose(readPtr);
-    ClearHashMap(hashMap, 160);
+    ClearHashMap(hashMap, MAPSIZE);
+}
+
+int RunInstructions(const char* instructions, const char* start, const char* end, Bucket* hashMapPtr, int length)
+{
+    KeyValue *temp;
+    temp = ReadHashMap(start, hashMapPtr, length);
+    int counter = 0, instructionsLength = 0;
+    for(const char *temp = instructions; *temp!='\0'; instructionsLength++, temp++);
+
+
+    while(CompareString(temp->key, end))
+    {
+        //Get next instruction.
+        char tempInstruction = *(instructions + counter%(instructionsLength-1));        
+        counter++;
+        //follow instruction and get result
+        switch (tempInstruction)
+        {
+        case 'L':
+            temp = ReadHashMap(temp->left, hashMapPtr, length); 
+            break;
+        case 'R':
+            temp = ReadHashMap(temp->right, hashMapPtr, length); 
+            break;
+        default:
+            printf("Invalid Instruction, %d\n", (counter-1)%instructionsLength);
+            break;
+        }
+    }
+    return counter;
 }
 
 void PutInputInHashMap(Bucket *hashMapPtr, int length, FILE* readPtr)
@@ -61,7 +84,7 @@ int GetHash(const char *input)
     //run until '\0' is hit.
     for(int i = 0; *(input+i)!='\0'; i++)
     {
-        sum += i * 7 * (int)(*(input+i));
+        sum += sum * 7 + (int)(*(input+i));
     }
     return sum;
 }
@@ -104,6 +127,7 @@ KeyValue* ReadHashMap(const char* key, Bucket *hashMapPtr, int length)
         if(hashMapPtr->nextPtr == NULL) return NULL;
         hashMapPtr = hashMapPtr->nextPtr;
     }
+
     return &hashMapPtr->keyPair;
 }
 
