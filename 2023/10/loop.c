@@ -15,20 +15,24 @@ int main(void)
     fseek(readFile, -1, SEEK_CUR);
     long int startPos = ftell(readFile);
 
-    //Check which directions loop back to S.
+    //Check which directions loop back to S. Just keep moving the pointer until it reaches S, then divide by 2.
+    //if it halts prematurely, it's not a valid loop. Do for all 4 directions.
+    int num_Steps = 0;
+    Direction validDir = NONE;
     for (int i = 0; i < 4; i++)
     {
+        num_Steps = 0;
         MovePointer(readFile, (Direction)i, LINELENGTH);
         Direction prevDirection = ReturnOppositeDirection((Direction)i);
         long int currentPos = ftell(readFile);
-        int temp = 0, num_Steps = -1;
+        int temp = 0;
         while ((temp = AutoMovePointer(readFile, LINELENGTH, &prevDirection, &currentPos)) >= 1)
         {
+            //printf("%c, temp: %d\n", CheckCurrentPosition(readFile), temp);
             num_Steps++;
             if (temp != 2)
                 continue;
             //loop complete, print out direction.
-            num_Steps = (num_Steps-1)/2 +1; //Take total steps and divide by 2 to find center.
             switch (i)
             {
             case 0:
@@ -44,17 +48,91 @@ int main(void)
                 printf("West, number of steps: %d\n", num_Steps);
                 break;
             }
+            if(num_Steps>2) validDir = (Direction)i;
             break;
         }
 
         fseek(readFile, startPos, SEEK_SET); // reset back to start pos for next iteration.
     }
 
+    //***PART 2***//
+    //use shoelace theorem to check area, then reverse engineer using pick's theorem to find number of points within that area.
+    fseek(readFile, startPos, SEEK_SET);
+    Coord points[3] = {0}; //stores left, middle, right.
+    Coord vertices[50000] = {0}; //stores all the vertices.
 
+    points[1] = CheckCurrentCoordinates(readFile, LINELENGTH); //start position
+    MovePointer(readFile, validDir, LINELENGTH);
+    points[2] = CheckCurrentCoordinates(readFile, LINELENGTH); //the next tile from start position.
+    int verticeCounter = 0;
+    
+    Direction prevDirection = ReturnOppositeDirection(validDir);
+    long int currentPosition = ftell(readFile);
+    int temp = 0;
+    while((temp=AutoMovePointer(readFile, LINELENGTH, &prevDirection, &currentPosition)) >= 1)
+    {
+        points[0] = points[1]; 
+        points[1] = points[2];
+        points[2] = CheckCurrentCoordinates(readFile, LINELENGTH);
+        if(!isGradientEqual(points[0], points[1], points[2]))
+        {
+            //That means the middle point is the vertice.
+            vertices[verticeCounter++] = points[1];
+        }
+        if(temp==2) //currentPosition is S.
+        {
+            MovePointer(readFile, validDir, LINELENGTH);
+            points[0] = points[1];
+            points[1] = points[2];
+            points[2] = CheckCurrentCoordinates(readFile, LINELENGTH);
+            if(!isGradientEqual(points[0], points[1], points[2]))
+            {
+                vertices[verticeCounter++] = points[1];
+            }
+            break;
+        }
+    }
+    
+    double sum = 0;
+    for(int i = 0; i<verticeCounter-1; i++)
+    {
+        printf("(%d, %d) ", vertices[i].x, vertices[i].y);
+        sum += vertices[i].x * vertices[i+1].y - vertices[i].y * vertices[i+1].x;
+        printf("Sum: %lf\n", sum);
+        if(i == verticeCounter-2)
+        {
+            sum += vertices[i+1].x*vertices[0].y - vertices[i+1].y * vertices[0].x;
+            sum*=0.5;
+            printf("Sum: %lf\n", sum);
+            break;
+        }    
+    }
+    if(sum<0) sum*=-1;
+
+
+
+    // Pick's thm: Area = num_interior + 0.5num_perimeter -1
+    // num_interior = Area - 0.5num_perimeter+1
+    printf("Answer: %f\n", (float)(sum - 0.5*(num_Steps+1)+1));
+
+    
     fclose(readFile);
 }
 
+Coord CheckCurrentCoordinates(FILE* readPtr, int lineLength)
+{
+    int currentPosition = ftell(readPtr);
+    return (Coord){currentPosition%lineLength, (currentPosition/lineLength)+1};
+}
 
+//returns 1 if gradients is equal, 0 if not.
+int isGradientEqual(Coord left, Coord middle, Coord right)
+{
+    Coord gradientFirst = {middle.x-left.x, middle.y-left.y};
+    Coord gradientSecond = {right.x-middle.x, right.y-middle.y};
+    if(gradientFirst.x == gradientSecond.x && gradientFirst.y == gradientSecond.y) return 1;
+    return 0;
+}
 
 Direction ReturnOppositeDirection(Direction direction)
 {
@@ -124,11 +202,6 @@ int AutoMovePointer(FILE *readPtr, int lineLength, Direction *prevDirection, lon
     fseek(readPtr, *currentPos, SEEK_SET); // so that it can be run simultaneously.
 
     char currentChar = CheckCurrentPosition(readPtr);
-    // loop back to start.
-    if (currentChar == 'S')
-    {
-        return 2;
-    }
 
     Direction nextDir = NONE;
     switch (currentChar)
@@ -195,6 +268,9 @@ int AutoMovePointer(FILE *readPtr, int lineLength, Direction *prevDirection, lon
         break;
     case '.': // Unable to move
         nextDir = NONE;
+        break;
+    case 'S':
+        return 2;
     }
     if (nextDir == NONE)
     {
@@ -204,131 +280,8 @@ int AutoMovePointer(FILE *readPtr, int lineLength, Direction *prevDirection, lon
     MovePointer(readPtr, nextDir, lineLength);
     *prevDirection = ReturnOppositeDirection(nextDir);
     *currentPos = ftell(readPtr);
+    if(CheckCurrentPosition(readPtr) == 'S') return 2; //check if it reached S after moving one tile.
+
     return 1;
 }
 
-/*
-int CheckDirections(Direction prevDirection, FILE *readPtr, int lineLength)
-{
-    // Check current position, and check only in that direction to see if can continue.
-    // e.g. If it's a 7, and prevDirection is south, then check west but not south.
-    // base case would be returning back to S, in which case return 1, or hitting dead end(return 0).
-
-    // base case when loops back to 'S'. If prevDirection == NONE, that is the start case.
-
-    long int currentPosition = ftell(readPtr);
-    char currentChar = CheckCurrentPosition(readPtr);
-
-    if (currentChar == 'S' && prevDirection != NONE)
-    {
-        return 1;
-    }
-
-    if (currentChar == 'S')
-    {
-        // check in all 4 directions
-        for (int i = 0; i < 4; i++)
-        {
-            switch (i)
-            {
-            case 0:
-                printf("North: ");
-                break;
-            case 1:
-                printf("East: ");
-                break;
-            case 2:
-                printf("South: ");
-                break;
-            case 3:
-                printf("West: ");
-                break;
-            }
-            MovePointer(readPtr, (Direction)i, lineLength);
-            printf("%d\n", CheckDirections(ReturnOppositeDirection((Direction)i), readPtr, lineLength));
-            fseek(readPtr, currentPosition, SEEK_SET);
-        }
-        return 0;
-    }
-
-    // TODO: remb to check for starting 'S'.
-    int returnVal = 0;
-    Direction nextDir = NONE;
-    // Checks if current Pipe and previous direction is valid(e.g. '-' and prevDirection == North is not valid.)
-    switch (currentChar)
-    {
-    case '|': // North-South
-        if (prevDirection == NORTH)
-        {
-            nextDir = SOUTH;
-        }
-        else if (prevDirection == SOUTH)
-        {
-            nextDir = NORTH;
-        }
-        break;
-    case '-': // East-West
-        if (prevDirection == EAST)
-        {
-            nextDir = WEST;
-        }
-        else if (prevDirection == WEST)
-        {
-            nextDir = EAST;
-        }
-        break;
-    case 'L': // North-East
-        if (prevDirection == NORTH)
-        {
-            nextDir = EAST;
-        }
-        else if (prevDirection == EAST)
-        {
-            nextDir = NORTH;
-        }
-        break;
-    case 'J': // North-West
-        if (prevDirection == NORTH)
-        {
-            nextDir = WEST;
-        }
-        else if (prevDirection == WEST)
-        {
-            nextDir = NORTH;
-        }
-        break;
-    case 'F': // South-East
-        if (prevDirection == SOUTH)
-        {
-            nextDir = EAST;
-        }
-        else if (prevDirection == EAST)
-        {
-            nextDir = SOUTH;
-        }
-        break;
-    case '7': // South-West
-        if (prevDirection == SOUTH)
-        {
-            nextDir = WEST;
-        }
-        else if (prevDirection == WEST)
-        {
-            nextDir = SOUTH;
-        }
-        break;
-    case '.': // Unable to move
-        nextDir = NONE;
-    }
-    if (nextDir == NONE)
-        return 0; // invalid pipe or prevDirection, unable to move further.
-
-    MovePointer(readPtr, nextDir, lineLength);
-    returnVal = CheckDirections(ReturnOppositeDirection(nextDir), readPtr, lineLength);
-
-    // set back to normal after calling below recursions.
-    fseek(readPtr, currentPosition, SEEK_SET);
-    return returnVal;
-}
-
-*/
