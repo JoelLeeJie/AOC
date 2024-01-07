@@ -59,7 +59,7 @@ int main(void)
     //use shoelace theorem to check area, then reverse engineer using pick's theorem to find number of points within that area.
     fseek(readFile, startPos, SEEK_SET);
     Coord points[3] = {0}; //stores left, middle, right.
-    Coord vertices[50000] = {0}; //stores all the vertices.
+    Coord vertices[10000] = {0}; //stores all the vertices.
 
     points[1] = CheckCurrentCoordinates(readFile, LINELENGTH); //start position
     MovePointer(readFile, validDir, LINELENGTH);
